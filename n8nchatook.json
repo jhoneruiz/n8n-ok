@@ -1,0 +1,745 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1o0gBWM1Qh37XCGL1xzI1ZzBz5nA4ixYsC6H_vVz1FoA/edit?gid=1845513167#gid=1845513167",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 914132591,
+          "mode": "list",
+          "cachedResultName": "caucel 1.58mdp",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1o0gBWM1Qh37XCGL1xzI1ZzBz5nA4ixYsC6H_vVz1FoA/edit#gid=914132591"
+        },
+        "event": "rowAdded",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [
+        -11408,
+        3328
+      ],
+      "id": "78df953d-11a9-4dc7-af4d-cf8853af30d0",
+      "name": "Google Sheets Trigger",
+      "credentials": {
+        "googleSheetsTriggerOAuth2Api": {
+          "id": "pCovOCRQyRuiMC7P",
+          "name": "Google Sheets Trigger account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $json;\nconst rawPhone = String(row.phone_number || row.telefono || '').trim();\n\nlet normalized = rawPhone\n  .replace(/^\\s*:?p\\s*/i, '')\n  .replace(/[^\\d+]/g, '');\n\nlet digits = normalized.replace(/\\D/g, '');\nlet phone10 = digits;\n\nif (digits.length === 10) {\n  phone10 = digits;\n  digits = `521${digits}`;\n} else if (digits.length === 12 && digits.startsWith('52')) {\n  phone10 = digits.substring(2);\n  digits = `521${phone10}`;\n} else if (digits.length === 13 && digits.startsWith('521')) {\n  phone10 = digits.substring(3);\n}\n\nnormalized = `+${digits}`;\n\nconst campaign = String(row.campaign_name || '').toLowerCase().trim();\nconst ad = String(row.ad_name || '').toLowerCase().trim();\nconst form = String(row.form_name || '').toLowerCase().trim();\n\nlet property = {\n  property_id: 'EB-TA3383',\n  property_title: 'Casa en Caucel',\n  property_zone: 'Caucel',\n  template_name: 'caucel_info',\n  template_language: 'es_MX',\n  source_name: 'Facebook Lead Ads - Caucel'\n};\n\nif (campaign.includes('caucel') || ad.includes('caucel') || form.includes('caucel')) {\n  property = {\n    property_id: 'EB-TA3383',\n    property_title: 'Casa en Caucel',\n    property_zone: 'Caucel',\n    template_name: 'caucel_info',\n    template_language: 'es_MX',\n    source_name: 'Facebook Lead Ads - Caucel'\n  };\n}\n\nconst paymentMethod = row['¿con_qué_forma_de_pago_o_crédito_planeas_comprar?'] || row['¿cuál_es_tu_método_de_compra_o_tipo_de_crédito?'] || '';\nconst buyTimeline = row['¿para_cuándo_necesitas_tener_lista_tu_casa?'] || row['¿qué_tan_pronto_te_gustaría_mudarte?'] || '';\n\nconst templateNameFromSheet = String(row.template_name || row.template || row.chatwoot_template || '').trim();\nconst templateLanguageFromSheet = String(row.template_language || row.chatwoot_template_language || '').trim();\n\nreturn [{\n  json: {\n    ...row,\n    phone_original: rawPhone,\n    phone_clean: normalized,\n    phone_digits: digits,\n    phone_10_digits: phone10,\n    payment_method: paymentMethod,\n    buy_timeline: buyTimeline,\n    template_name_selected: templateNameFromSheet || property.template_name,\n    template_language_selected: templateLanguageFromSheet || property.template_language,\n    template_category_selected: 'MARKETING',\n    ...property\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -11168,
+        3328
+      ],
+      "id": "2caf4981-5a22-4a88-8cab-eb6ce40cdf7b",
+      "name": "Normalizar_y_mapear_propiedad"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.easybroker.com/v1/contact_requests",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Authorization",
+              "value": "b6vq11mphmowymtjjkz84er9j4n2j6"
+            },
+            {
+              "name": "accept",
+              "value": "application/json"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (() => { const data = $('Normalizar_y_mapear_propiedad').first().json; const body = { name: data.full_name, phone: data.phone_10_digits, message: `Forma de pago: ${data.payment_method}\\nCuándo planea comprar: ${data.buy_timeline}\\nCampaña: ${data.campaign_name}\\nAnuncio: ${data.ad_name}`, source: data.source_name }; if (data.property_id) { body.property_id = data.property_id; } return body; })() }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -10928,
+        3328
+      ],
+      "id": "d434ae74-6908-4027-a654-666f167e37e2",
+      "name": "EasyBroker_Create_Contact_Request"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -10688,
+        3328
+      ],
+      "id": "8e63e359-bce8-4c94-9d52-aec36a2848dc",
+      "name": "Merge_row_y_easybroker"
+    },
+    {
+      "parameters": {
+        "url": "=https://crm.vinapropiedades.com.mx/api/v1/accounts/1/contacts/search?q={{ encodeURIComponent($json.phone_clean) }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -10448,
+        3328
+      ],
+      "id": "c9451ec5-7961-42a3-a3ef-ddf0e249d0f4",
+      "name": "Chatwoot_Search_Contact_By_Phone",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cHB9lH3QVctMzrps",
+          "name": "chtawoot api"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const base = $('Merge_row_y_easybroker').first().json;\nconst response = $json;\nconst payload = Array.isArray(response.payload) ? response.payload : [];\n\nconst clean = String(base.phone_clean || '');\nconst digits = String(base.phone_digits || '');\n\nconst found = payload.find((c) => {\n  const phone = String(c.phone_number || '');\n  const phoneDigits = phone.replace(/\\D/g, '');\n  return phone === clean || phoneDigits === digits || phoneDigits === `52${digits}`;\n}) || payload[0] || null;\n\nconst inbox4 = found?.contact_inboxes?.find(ci => Number(ci?.inbox?.id) === 4) || null;\n\nreturn [{\n  json: {\n    ...base,\n    chatwoot_contact_exists: Boolean(found),\n    chatwoot_contact_id: found?.id || null,\n    chatwoot_contact_source_id: inbox4?.source_id || null,\n    chatwoot_contact_raw: found || null\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -10208,
+        3328
+      ],
+      "id": "8df8cb86-c37a-415f-92dc-15a065cf9800",
+      "name": "Resolver_contacto_chatwoot"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "fd0fb7f3-8ad6-4187-a7a0-2668b8f7d6d3",
+              "leftValue": "={{$json.chatwoot_contact_exists}}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -9968,
+        3328
+      ],
+      "id": "d08653d2-e689-4992-ac06-20cb4d9d784c",
+      "name": "IF_Contacto_Existe"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://crm.vinapropiedades.com.mx/api/v1/accounts/1/contacts/{{$json.chatwoot_contact_id}}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"name\": \"{{$json.full_name}}\",\n  \"phone_number\": \"{{$json.phone_clean}}\",\n  \"custom_attributes\": {\n    \"source\": \"facebook_lead_ads\",\n    \"platform\": \"{{$json.platform}}\",\n    \"campaign_id\": \"{{$json.campaign_id}}\",\n    \"campaign_name\": \"{{$json.campaign_name}}\",\n    \"ad_name\": \"{{$json.ad_name}}\",\n    \"payment_method\": \"{{$json.payment_method}}\",\n    \"buy_timeline\": \"{{$json.buy_timeline}}\",\n    \"property_title\": \"{{$json.property_title}}\",\n    \"chatwoot_contact_status\": \"existing_updated\"\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -9728,
+        3200
+      ],
+      "id": "ef719cc0-9416-4c15-a737-8a0cbe6a08a2",
+      "name": "Chatwoot_Update_Existing_Contact",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cHB9lH3QVctMzrps",
+          "name": "chtawoot api"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://crm.vinapropiedades.com.mx/api/v1/accounts/1/contacts",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"inbox_id\": 4,\n  \"name\": \"{{$json.full_name}}\",\n  \"phone_number\": \"{{$json.phone_clean}}\",\n  \"custom_attributes\": {\n    \"source\": \"facebook_lead_ads\",\n    \"campaign_name\": \"{{$json.campaign_name}}\",\n    \"ad_name\": \"{{$json.ad_name}}\",\n    \"payment_method\": \"{{$json.payment_method}}\",\n    \"buy_timeline\": \"{{$json.buy_timeline}}\",\n    \"property_title\": \"{{$json.property_title}}\",\n    \"chatwoot_contact_status\": \"created\"\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -9728,
+        3440
+      ],
+      "id": "a137d772-d9da-41ca-bd06-e05f896a8838",
+      "name": "Chatwoot_Create_Contact",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cHB9lH3QVctMzrps",
+          "name": "chtawoot api"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://crm.vinapropiedades.com.mx/api/v1/accounts/1/contacts/{{$json.payload?.contact?.id || $json.id}}/contact_inboxes",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"inbox_id\": 4,\n  \"source_id\": \"{{$('Normalizar_y_mapear_propiedad').first().json.phone_digits}}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -9520,
+        3440
+      ],
+      "id": "faecb560-9bf0-4d28-8a7f-bc14772fbcda",
+      "name": "Vincular_WhatsApp",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cHB9lH3QVctMzrps",
+          "name": "chtawoot api"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const prior = $('Resolver_contacto_chatwoot').first().json;\nconst response = $json || {};\n\nlet createdNode = {};\ntry {\n  createdNode = $('Chatwoot_Create_Contact').first().json || {};\n} catch (error) {}\n\nconst payload = response.payload || {};\nconst contactFromPayload = payload.contact || null;\nconst contactInboxFromPayload = payload.contact_inbox || null;\n\nconst candidates = [contactFromPayload, response.contact, response.data?.contact, response].filter(Boolean);\n\nlet contact = null;\nfor (const c of candidates) {\n  if (c && typeof c === 'object' && !Array.isArray(c)) { contact = c; break; }\n}\n\nconst contactId = Number(prior.chatwoot_contact_id || contact?.id || createdNode.payload?.contact?.id || createdNode.id || 0) || null;\n\nconst inboxes = Array.isArray(contact?.contact_inboxes) ? contact.contact_inboxes : [];\nconst inbox4 = inboxes.find(ci => Number(ci?.inbox?.id) === 4 || Number(ci?.inbox_id) === 4);\n\nconst sourceId = String(prior.chatwoot_contact_source_id || inbox4?.source_id || $('Normalizar_y_mapear_propiedad').first().json.phone_digits || '').trim() || null;\n\nreturn [{\n  json: {\n    ...prior,\n    chatwoot_contact_id: contactId,\n    chatwoot_contact_source_id: sourceId,\n    chatwoot_contact_status: prior.chatwoot_contact_exists ? 'existing_updated' : 'created',\n    chatwoot_contact_raw_resolved: contactFromPayload || contact || response,\n    needs_source_lookup: !sourceId\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -9280,
+        3328
+      ],
+      "id": "ac243a97-c0a0-4e92-a09b-d561358764be",
+      "name": "Normalizar_ids_contacto_chatwoot"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c90ca2ea-17f3-4571-9a47-1973f687bf34",
+              "leftValue": "={{!$json.needs_source_lookup}}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -9104,
+        3328
+      ],
+      "id": "a0242f98-7640-44aa-8146-8c9f15b728fb",
+      "name": "IF_Tiene_Source_ID"
+    },
+    {
+      "parameters": {
+        "url": "=https://crm.vinapropiedades.com.mx/api/v1/accounts/1/contacts/{{$json.chatwoot_contact_id}}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -8928,
+        3472
+      ],
+      "id": "a60d6f67-d9e7-43e7-a936-2638549d97cc",
+      "name": "Chatwoot_Get_Contact_Detail",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cHB9lH3QVctMzrps",
+          "name": "chtawoot api"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const base = $('Normalizar_ids_contacto_chatwoot').first().json;\nconst response = $json || {};\nconst contact = response.payload || response;\nconst inboxes = Array.isArray(contact?.contact_inboxes) ? contact.contact_inboxes : [];\nconst inbox4 = inboxes.find(ci => Number(ci?.inbox?.id) === 4 || Number(ci?.inbox_id) === 4);\nconst sourceId = String(inbox4?.source_id || '').trim();\n\nreturn [{\n  json: {\n    ...base,\n    chatwoot_contact_source_id: sourceId,\n    needs_source_lookup: false\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -8736,
+        3472
+      ],
+      "id": "d01bb486-5a2b-4b02-be2f-c7c35cbcff50",
+      "name": "Resolver_Source_ID_Desde_Detalle"
+    },
+    {
+      "parameters": {
+        "url": "=https://crm.vinapropiedades.com.mx/api/v1/accounts/1/contacts/{{$json.chatwoot_contact_id}}/conversations",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -8496,
+        3328
+      ],
+      "id": "9cad632e-eba7-4248-98b9-b6883c416760",
+      "name": "Chatwoot_Get_Conversations",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cHB9lH3QVctMzrps",
+          "name": "chtawoot api"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const base = $('Normalizar_ids_contacto_chatwoot').first().json;\nconst response = $('Chatwoot_Get_Conversations').first().json || {};\n\nconst conversations = Array.isArray(response.payload) ? response.payload : (Array.isArray(response) ? response : []);\n\n// Busca una conversación activa en WhatsApp (inbox 4)\nlet existingConv = conversations.find(c => Number(c.inbox_id) === 4 && String(c.status) !== 'resolved');\nif (!existingConv) {\n    existingConv = conversations.find(c => Number(c.inbox_id) === 4);\n}\n\nreturn [{\n    json: {\n        ...base,\n        has_active_conversation: !!existingConv,\n        chatwoot_conversation_id_existing: existingConv ? existingConv.id : null\n    }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -8288,
+        3328
+      ],
+      "id": "48033f60-61f8-4c61-a67f-a9e390f4c4bc",
+      "name": "Evaluar_Conversacion"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond-1",
+              "leftValue": "={{$json.has_active_conversation}}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -8096,
+        3328
+      ],
+      "id": "e87abec6-dbca-4edd-bb22-1ebf826b5f73",
+      "name": "IF_Existe_Conversacion"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://crm.vinapropiedades.com.mx/api/v1/accounts/1/conversations",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  {\n    \"source_id\": $('Normalizar_y_mapear_propiedad').first().json.phone_digits,\n    \"inbox_id\": 4,\n    \"contact_id\": $('Normalizar_ids_contacto_chatwoot').first().json.chatwoot_contact_id,\n    \"status\": \"open\",\n    \"custom_attributes\": {\n      \"source\": \"facebook_lead_ads\",\n      \"campaign_name\": $('Normalizar_y_mapear_propiedad').first().json.campaign_name || \"\",\n      \"ad_name\": $('Normalizar_y_mapear_propiedad').first().json.ad_name || \"\",\n      \"payment_method\": $('Normalizar_y_mapear_propiedad').first().json.payment_method || \"\",\n      \"property_title\": $('Normalizar_y_mapear_propiedad').first().json.property_title || \"\"\n    }\n  }\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -7888,
+        3472
+      ],
+      "id": "dc7555c2-1e8f-4ac0-866b-eb90fd72fd4b",
+      "name": "Chatwoot_Create_Conversation",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cHB9lH3QVctMzrps",
+          "name": "chtawoot api"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let createdId = null;\ntry {\n    const createData = $('Chatwoot_Create_Conversation').first().json || {};\n    createdId = createData.id || createData.conversation_id || createData.payload?.id;\n} catch (e) {}\n\nlet existingId = null;\ntry {\n    const evalData = $('Evaluar_Conversacion').first().json || {};\n    existingId = evalData.chatwoot_conversation_id_existing;\n} catch(e) {}\n\n// Toma el ID que sí exista, ya sea nuevo o reciclado\nconst finalId = createdId || existingId;\n\nif (!finalId) {\n    throw new Error('⚠️ CRÍTICO: No se encontró un ID de conversación nuevo ni existente.');\n}\n\nconst base = $('Normalizar_ids_contacto_chatwoot').first().json;\n\nreturn [{\n    json: {\n        ...base,\n        chatwoot_conversation_id: finalId\n    }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -7648,
+        3328
+      ],
+      "id": "f37c6338-cb2f-43f4-a545-1cfc07b948d8",
+      "name": "Normalizar_conversation_id"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://crm.vinapropiedades.com.mx/api/v1/accounts/1/conversations/{{ $('Normalizar_conversation_id').first().json.chatwoot_conversation_id }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"content\": \"📌 [Bot] Se envió la plantilla: Saludo simple.\",\n  \"message_type\": \"outgoing\",\n  \"private\": false,\n  \"content_type\": \"text\",\n  \"template_params\": {\n    \"name\": \"saludo_simpe\",\n    \"category\": \"MARKETING\",\n    \"language\": \"es_MX\",\n    \"processed_params\": {}\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -7408,
+        3328
+      ],
+      "id": "82dc2dec-3c60-40b1-8156-ade4e86997ba",
+      "name": "Chatwoot_Send_Initial_Template",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cHB9lH3QVctMzrps",
+          "name": "chtawoot api"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "=POST",
+        "url": "=https://crm.vinapropiedades.com.mx/api/v1/accounts/1/conversations/{{ $('Normalizar_conversation_id').first().json.chatwoot_conversation_id }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"content\": \"Lead procesado desde Google Sheets/Facebook Ads\\n\\nNombre: {{$('Normalizar_y_mapear_propiedad').first().json.full_name}}\\nTeléfono: {{$('Normalizar_y_mapear_propiedad').first().json.phone_clean}}\\nCampaña: {{$('Normalizar_y_mapear_propiedad').first().json.campaign_name}}\\nPropiedad: {{$('Normalizar_y_mapear_propiedad').first().json.property_title}}\\nEasyBroker status: {{$('EasyBroker_Create_Contact_Request').first().json.status || 'sin_status'}}\",\n  \"message_type\": \"outgoing\",\n  \"private\": true,\n  \"content_type\": \"text\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -7216,
+        3328
+      ],
+      "id": "1f137b28-364d-4d3f-8319-38f6b30bbdb3",
+      "name": "Chatwoot_Private_Note",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cHB9lH3QVctMzrps",
+          "name": "chtawoot api"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Google Sheets Trigger": {
+      "main": [
+        [
+          {
+            "node": "Normalizar_y_mapear_propiedad",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar_y_mapear_propiedad": {
+      "main": [
+        [
+          {
+            "node": "EasyBroker_Create_Contact_Request",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge_row_y_easybroker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EasyBroker_Create_Contact_Request": {
+      "main": [
+        [
+          {
+            "node": "Merge_row_y_easybroker",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge_row_y_easybroker": {
+      "main": [
+        [
+          {
+            "node": "Chatwoot_Search_Contact_By_Phone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chatwoot_Search_Contact_By_Phone": {
+      "main": [
+        [
+          {
+            "node": "Resolver_contacto_chatwoot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolver_contacto_chatwoot": {
+      "main": [
+        [
+          {
+            "node": "IF_Contacto_Existe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF_Contacto_Existe": {
+      "main": [
+        [
+          {
+            "node": "Chatwoot_Update_Existing_Contact",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Chatwoot_Create_Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chatwoot_Update_Existing_Contact": {
+      "main": [
+        [
+          {
+            "node": "Normalizar_ids_contacto_chatwoot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chatwoot_Create_Contact": {
+      "main": [
+        [
+          {
+            "node": "Vincular_WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vincular_WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Normalizar_ids_contacto_chatwoot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar_ids_contacto_chatwoot": {
+      "main": [
+        [
+          {
+            "node": "IF_Tiene_Source_ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF_Tiene_Source_ID": {
+      "main": [
+        [
+          {
+            "node": "Chatwoot_Get_Conversations",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Chatwoot_Get_Contact_Detail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chatwoot_Get_Contact_Detail": {
+      "main": [
+        [
+          {
+            "node": "Resolver_Source_ID_Desde_Detalle",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolver_Source_ID_Desde_Detalle": {
+      "main": [
+        [
+          {
+            "node": "Chatwoot_Get_Conversations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chatwoot_Get_Conversations": {
+      "main": [
+        [
+          {
+            "node": "Evaluar_Conversacion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluar_Conversacion": {
+      "main": [
+        [
+          {
+            "node": "IF_Existe_Conversacion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF_Existe_Conversacion": {
+      "main": [
+        [
+          {
+            "node": "Normalizar_conversation_id",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Chatwoot_Create_Conversation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chatwoot_Create_Conversation": {
+      "main": [
+        [
+          {
+            "node": "Normalizar_conversation_id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar_conversation_id": {
+      "main": [
+        [
+          {
+            "node": "Chatwoot_Send_Initial_Template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chatwoot_Send_Initial_Template": {
+      "main": [
+        [
+          {
+            "node": "Chatwoot_Private_Note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "d6c96fb37a85ef9ad7930628f07f9ddf776c4c43c973c12cf42f4d1b5d438bbb"
+  }
+}
